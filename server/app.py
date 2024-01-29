@@ -5,6 +5,8 @@ from models import db, Hero, Power, HeroPower
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///superheroes.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
+
 app.json.compact = True
 
 migrate = Migrate(app, db)
@@ -29,7 +31,12 @@ def heroes():
         }
         heroes.append(hero_dict)
 
-    return jsonify(heroes), 200
+    response = make_response(
+        jsonify(heroes),
+        200,
+    )
+    
+    return response
 
 @app.route('/heroes/<int:id>')
 def hero_by_id(id):
@@ -43,9 +50,19 @@ def hero_by_id(id):
             'updated_at': hero.updated_at,
             'powers': [{'id': hp.power.id, 'name': hp.power.name, 'description': hp.power.description, 'strength': hp.strength} for hp in hero.hero_powers]
         }
-        return jsonify(hero_dict), 200
+        response = make_response(
+            jsonify(hero_dict),
+            200,
+            )
+        return response
+        
     else:
-        return jsonify({'error': 'Hero not found'}), 404
+        response = make_response(
+            jsonify({'error': 'Hero not found'}),
+            404,
+        )
+
+        return response
 
 @app.route('/powers')
 def powers():
@@ -57,12 +74,106 @@ def powers():
             'description': power.description,
             'created_at': power.created_at,
             'updated_at': power.updated_at,
-            'heroes': [{'id': hp.hero.id, 'name': hp.hero.name, 'super_name': hp.hero.super_name, 'strength': hp.strength} for hp in power.power_heroes]
         }
         powers.append(power_dict)
 
-    return jsonify(powers), 200
+    response = make_response(
+        jsonify(powers),
+        200,
+    )
 
+    return response
+
+@app.route('/powers/<int:id>', methods=['GET', 'PATCH'])
+def power_by_id(id):
+
+    if request.method == 'GET':
+        power = Power.query.get(id)
+        if power:
+            power_dict = {
+                'id': power.id,
+                'name': power.name,
+                'description': power.description,
+                'created_at': power.created_at,
+                'updated_at': power.updated_at,
+            }
+            response = make_response(
+                jsonify(power_dict),
+                200
+            )
+            return response 
+        
+        else:
+            return jsonify({'error': 'Power not found'}), 404
+        
+    elif request.method == 'PATCH':
+        power = Power.query.get(id)
+        if not power:
+            return jsonify({'error': 'Power not found'}), 404
+
+        if request.form:
+            for attr, value in request.form.items():
+                setattr(power, attr, value)
+
+        db.session.commit()
+
+        power_dict = {
+            'id': power.id,
+            'name': power.name,
+            'description': power.description,
+            'created_at': power.created_at,
+            'updated_at': power.updated_at,
+        }
+
+        response = make_response(
+            jsonify(power_dict),
+            200,
+        )
+
+        return response
+
+@app.route('/hero_powers', methods=['POST'])
+def add_hero_powers():
+    power = request.json
+
+    if not power:
+        return jsonify({"error": "Request body must be in JSON format"}), 400
+    
+    strength =power.get('strength')
+    hero_id = power.get('hero_id')
+    power_id = power.get('power_id')
+    created_at = power.get('created_at')
+    updated_at = power.get('updated_at')
+
+    if not strength or not hero_id or not power_id:
+        return jsonify({"error": "Missing required fields"}), 400
+    
+    new_power = HeroPower(
+        strength=strength,
+        hero_id=hero_id,
+        power_id=power_id,
+        created_at=created_at,
+        updated_at=updated_at,
+    ) 
+
+    db.session.add(new_power)
+    db.session.commit()
+
+    response_dict = {
+        'id': new_power.id,
+        'strength': new_power.strength,
+        'hero_id': new_power.hero_id,
+        'power_id': new_power.power_id,
+        'created_at': new_power.created_at,
+        'updated_at': new_power.updated_at,
+    }
+
+    response = make_response(
+        jsonify(response_dict),
+        201,
+    )
+
+    return response
 
 
 if __name__ == '__main__':

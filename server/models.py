@@ -1,10 +1,51 @@
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy_serializer import SerializerMixin
 
 db = SQLAlchemy()
 
-class Hero(db.Model):
-    __tablename__ = 'hero'
+class Hero(db.Model, SerializerMixin):
+    __tablename__ = 'heroes'
+
+    serialize_rules = ('-heropowers.hero',)
 
     id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100))
+    super_name = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, onupdate=db.func.now())
 
-# add any models you may need. 
+    hero_powers = db.relationship('HeroPower', backref='hero')
+
+    def __repr__(self):
+         return f"Name: {self.name}, Super Name: {self.super_name}"
+    
+class Power(db.Model, SerializerMixin):
+    __tablename__ = 'powers'
+
+    serialize_rules = ('-heropowers.power',)
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100))
+    description = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, onupdate=db.func.now())
+
+    power_heroes = db.relationship('HeroPower', backref='power')
+
+    def __repr__(self):
+         return f"Name: {self.name}, Description: {self.description}"
+
+class HeroPower(db.Model, SerializerMixin):
+    __tablename__ = 'heropowers'
+
+    serialize_rules = ('-hero.heropowers', '-power.heropowers',)
+
+    id = db.Column(db.Integer, primary_key=True)
+    strength = db.Column(db.String)
+    hero_id = db.Column(db.Integer, db.ForeignKey('heroes.id'))
+    power_id = db.Column(db.Integer, db.ForeignKey('powers.id'))
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, onupdate=db.func.now())
+
+    def __repr__(self):
+        return f"Strength: {self.strength}, Hero ID: {self.hero_id}, Power ID: {self.power_id}"

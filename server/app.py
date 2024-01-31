@@ -27,7 +27,8 @@ def heroes():
             'super_name': hero.super_name,
             'created_at': hero.created_at,
             'updated_at': hero.updated_at,
-            'powers': [{'id': hp.power.id, 'name': hp.power.name, 'description': hp.power.description, 'strength': hp.strength} for hp in hero.hero_powers]
+            'powers': [
+                {'id': hp.power.id, 'name': hp.power.name, 'description': hp.power.description, 'strength': hp.strength} for hp in hero.hero_powers]
         }
         heroes.append(hero_dict)
 
@@ -50,6 +51,7 @@ def hero_by_id(id):
             'updated_at': hero.updated_at,
             'powers': [{'id': hp.power.id, 'name': hp.power.name, 'description': hp.power.description, 'strength': hp.strength} for hp in hero.hero_powers]
         }
+        
         response = make_response(
             jsonify(hero_dict),
             200,
@@ -134,42 +136,42 @@ def power_by_id(id):
 
 @app.route('/hero_powers', methods=['POST'])
 def add_hero_powers():
-    power = request.json
+    
+    power = request.get_json()
 
     if not power:
-        return jsonify({"error": "Request body must be in JSON format"}), 400
+        return make_response(jsonify({"error": "Request body must be in JSON format"}), 400)
     
     strength =power.get('strength')
     hero_id = power.get('hero_id')
     power_id = power.get('power_id')
-    created_at = power.get('created_at')
-    updated_at = power.get('updated_at')
 
-    if not strength or not hero_id or not power_id:
-        return jsonify({"error": "Missing required fields"}), 400
+    hero = Hero.query.get(hero_id)
+    power = Power.query.get(power_id)
+    if not (hero and power):
+        return jsonify({"error": "Missing hero or power"}), 400
+
     
     new_power = HeroPower(
         strength=strength,
         hero_id=hero_id,
         power_id=power_id,
-        created_at=created_at,
-        updated_at=updated_at,
     ) 
 
     db.session.add(new_power)
     db.session.commit()
 
-    response_dict = {
-        'id': new_power.id,
-        'strength': new_power.strength,
-        'hero_id': new_power.hero_id,
-        'power_id': new_power.power_id,
-        'created_at': new_power.created_at,
-        'updated_at': new_power.updated_at,
-    }
+    hero_dict = {
+            'id': hero.id,
+            'name': hero.name,
+            'super_name': hero.super_name,
+            'created_at': hero.created_at,
+            'updated_at': hero.updated_at,
+            'powers': [{'id': hp.power.id, 'name': hp.power.name, 'description': hp.power.description, 'strength': hp.strength} for hp in hero.hero_powers]
+        }
 
     response = make_response(
-        jsonify(response_dict),
+        jsonify(hero_dict),
         201,
     )
 
@@ -177,4 +179,4 @@ def add_hero_powers():
 
 
 if __name__ == '__main__':
-    app.run(port=5555)
+    app.run(port=5555, debug=True)
